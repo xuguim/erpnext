@@ -1,0 +1,53 @@
+name: 'Upstream Sync'
+
+on:
+  schedule:
+    - cron: '0 7 * * 1,4'
+    # scheduled at 07:00 every Monday and Thursday
+
+  workflow_dispatch:
+    inputs:
+      sync_test_mode:
+        description: 'Fork Sync Test Mode'
+        type: boolean
+        default: false
+
+jobs:
+  sync_latest_from_upstream:
+    runs-on: ubuntu-latest
+    name: Sync latest commits from upstream repo
+
+    steps:
+    # Step 1: Checkout your fork
+    - name: Checkout target repo
+      uses: actions/checkout@v3
+      with:
+        ref: my-branch  # 确保这是你想要同步到的分支
+        persist-credentials: false
+
+    # Step 2: Sync upstream changes
+    - name: Sync upstream changes
+      id: sync
+      uses: aormsby/Fork-Sync-With-Upstream-action@v3.4.1
+      with:
+        target_sync_branch: my-branch  # 你想同步到的本地分支
+        target_repo_token: ${{ secrets.GITHUB_TOKEN }}
+        # 修改为实际的上游仓库
+        upstream_sync_repo: frappe/erpnext
+        upstream_sync_branch: main  # 上游仓库的分支，通常是main或master
+        # 如果你没有权限直接访问frappe/erpnext的私有信息，这里不需要upstream_repo_access_token
+
+        # 测试模式
+        test_mode: ${{ inputs.sync_test_mode }}
+
+    # Step 3: Handle output based on whether new commits were found
+    - name: New commits found
+      if: steps.sync.outputs.has_new_commits == 'true'
+      run: echo "New commits were found to sync."
+
+    - name: No new commits
+      if: steps.sync.outputs.has_new_commits == 'false'
+      run: echo "There were no new commits."
+
+    - name: Show value of 'has_new_commits'
+      run: echo ${{ steps.sync.outputs.has_new_commits }}
